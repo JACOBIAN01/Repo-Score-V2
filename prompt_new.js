@@ -201,4 +201,4 @@ Return ONLY valid JSON (no markdown, no explanation):
 `;
 };
 
-module.exports = { file_identifier_prompt, content_eval_prompt };
+export { file_identifier_prompt, content_eval_prompt };

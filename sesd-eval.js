@@ -1,12 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
 import axios from "axios";
-import { file_identifier_prompt, content_eval_prompt } from "./prompt_new";
+import { file_identifier_prompt, content_eval_prompt } from "./prompt_new.js";
 import "dotenv/config";
 
-const client = new Anthropic();
 
-// ─── Google Sheets ───────────────────────────────────────────────────────────
+const client = new Anthropic();
+// // ─── Delay ───────────────────────────────────────────────────────────────────
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+//─── Google Sheets ───────────────────────────────────────────────────────────
 
 async function getSheetData(auth) {
   const sheets = google.sheets({ version: "v4", auth });
@@ -58,7 +64,7 @@ async function updateSheet(auth, rowIndex, result) {
   console.log("DONE");
 }
 
-// ─── GitHub ──────────────────────────────────────────────────────────────────
+// // ─── GitHub ──────────────────────────────────────────────────────────────────
 
 function parseRepoUrl(repoUrl) {
   const parts = repoUrl.replace("https://github.com/", "").split("/");
@@ -77,7 +83,7 @@ async function getReportData(repoUrl) {
     try {
       const meta = await axios.get(
         `https://api.github.com/repos/${owner}/${repo}`,
-        { headers }
+        { headers },
       );
       aboutData = {
         description: meta.data.description || "",
@@ -90,7 +96,7 @@ async function getReportData(repoUrl) {
     try {
       const readme = await axios.get(
         `https://api.github.com/repos/${owner}/${repo}/readme`,
-        { headers }
+        { headers },
       );
       readmeData = Buffer.from(readme.data.content, "base64").toString();
     } catch {
@@ -100,7 +106,7 @@ async function getReportData(repoUrl) {
     try {
       const files = await axios.get(
         `https://api.github.com/repos/${owner}/${repo}/contents`,
-        { headers }
+        { headers },
       );
       filesData = files.data.map((f) => f.name);
     } catch {
@@ -120,7 +126,7 @@ async function fetchFileContent(owner, repo, filePath) {
     const headers = { Authorization: `token ${process.env.GITHUB_TOKEN}` };
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
-      { headers }
+      { headers },
     );
     return Buffer.from(res.data.content, "base64").toString();
   } catch {
@@ -128,7 +134,7 @@ async function fetchFileContent(owner, repo, filePath) {
   }
 }
 
-// ─── Anthropic / LLM ─────────────────────────────────────────────────────────
+// // ─── Anthropic / LLM ─────────────────────────────────────────────────────────
 
 async function askClaude(prompt) {
   const response = await client.messages.create({
@@ -148,7 +154,7 @@ async function askClaude(prompt) {
   }
 }
 
-// ─── Core Evaluator ──────────────────────────────────────────────────────────
+// // ─── Core Evaluator ──────────────────────────────────────────────────────────
 
 async function evalRepo(repoData, repoUrl) {
   const { owner, repo } = parseRepoUrl(repoUrl);
@@ -171,13 +177,15 @@ async function evalRepo(repoData, repoUrl) {
     fileContents,
     repoData.readme,
     repoData.files,
-    repoData.about
+    repoData.about,
   );
 
   return await askClaude(evalPrompt);
 }
 
-// ─── Main Runner ─────────────────────────────────────────────────────────────
+// // ─── Main Runner ─────────────────────────────────────────────────────────────
+const DELAY_MS = 12000;
+const TOTAL_ROWS = 441;
 
 async function run() {
   const auth = new google.auth.GoogleAuth({
@@ -186,9 +194,9 @@ async function run() {
   });
 
   const rows = await getSheetData(auth);
+  let evaluated = 0;
 
   for (let i = 0; i < rows.length; i++) {
-
     const repoUrl = rows[i][7];
     const studentName = rows[i][2];
 
@@ -200,13 +208,22 @@ async function run() {
       continue;
     }
 
-    console.log(`\nEvaluating: ${studentName}`);
+    console.log(`[${i + 1}/${TOTAL_ROWS}] Evaluating: ${studentName}`);
+
     try {
       const result = await evalRepo(repoData, repoUrl);
       await updateSheet(auth, i + 2, result);
+      evaluated++;
+
+      const eta = Math.ceil(((TOTAL_ROWS - (i + 1)) * DELAY_MS) / 60000);
+      console.log(
+        `✓ Done — ${evaluated} evaluated so far | ETA: ~${eta} min remaining`,
+      );
     } catch (err) {
       console.log(err);
     }
+
+    await delay(DELAY_MS);
   }
 
   console.log("\nAll done!");
