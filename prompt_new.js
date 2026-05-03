@@ -126,7 +126,7 @@ URL: ${url}
 CONTENT (first 800 chars):
 ${content.slice(0, 800)}
 ---`;
-}).join("\n")}
+}).join("\n") }
 
 ---
 
