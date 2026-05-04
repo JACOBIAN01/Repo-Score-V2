@@ -187,7 +187,6 @@ async function codeforcesStreak(username) {
     `https://codeforces.com/api/user.status?handle=${username}`
   );
 
-  console.log(res);
   const submissions = res.data.result;
 
   const currentYear = new Date().getFullYear();
@@ -196,16 +195,27 @@ async function codeforcesStreak(username) {
     .map(sub =>
       new Date(sub.creationTimeSeconds * 1000)
     )
-    .filter(d => d.getFullYear() === currentYear)
-    .map(d =>
-      d.toISOString().split("T")[0]
-    );
 
- const uniqueDates = [...new Set(dates)];
- console.log(uniqueDates);
+    .filter(d =>
+      d.getFullYear() === currentYear
+    )
+
+    // LOCAL DATE NOT UTC
+    .map(d => {
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0")
+      ].join("-");
+    });
+
+  // remove duplicates
+  const uniqueDates = [...new Set(dates)];
+
+  console.log(uniqueDates);
+
   return longestStreak(uniqueDates);
 }
-
 // ---------------- TRYHACKME ----------------
 // No proper public streak API
 async function run() {

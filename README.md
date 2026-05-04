@@ -1,4 +1,4 @@
-# SESD-Agent 🎓🤖
+# SESD-Agent 
 
 > **Three automated AI-powered grading pipelines for SESD submissions** — evaluates GitHub projects, case studies, and coding streaks. Reads from Google Sheets, scores with Claude & platform APIs, and writes results back. Fully hands-free.
 

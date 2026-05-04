@@ -11,7 +11,7 @@ const delay = ms =>
 const SHEET_ID = process.env.STREAK_SHEET;
 
 // G COLUMN = Profile Link
-const DATA_RANGE = "Form responses 1!G2:L";
+const DATA_RANGE = "Form responses 1!G268:L272";
 
 const auth = new google.auth.GoogleAuth({
   keyFile: "credentials.json",
@@ -225,12 +225,26 @@ async function codeforcesStreak(username) {
     .map(sub =>
       new Date(sub.creationTimeSeconds * 1000)
     )
-    .filter(d => d.getFullYear() === currentYear)
-    .map(d =>
-      d.toISOString().split("T")[0]
-    );
 
-  return longestStreak(dates);
+    .filter(d =>
+      d.getFullYear() === currentYear
+    )
+
+    // LOCAL DATE NOT UTC
+    .map(d => {
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0")
+      ].join("-");
+    });
+
+  // remove duplicates
+  const uniqueDates = [...new Set(dates)];
+
+  console.log(uniqueDates);
+
+  return longestStreak(uniqueDates);
 }
 
 // ---------------- TRYHACKME ----------------
